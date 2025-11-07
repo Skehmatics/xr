@@ -125,7 +125,6 @@ export class Pointer {
 
   //to handle interaction before first move (after exit)
   private wasMoved = false
-  private onFirstMove: Array<(camera: PerspectiveCamera | OrthographicCamera) => void> = []
 
   constructor(
     public readonly id: number,
@@ -250,11 +249,6 @@ export class Pointer {
 
     if (!this.wasMoved && this.intersector.isReady()) {
       this.wasMoved = true
-      const length = this.onFirstMove.length
-      for (let i = 0; i < length; i++) {
-        this.onFirstMove[i](camera)
-      }
-      this.onFirstMove.length = 0
     }
 
     this.onMoveCommited?.(this)
@@ -279,17 +273,13 @@ export class Pointer {
     emitPointerEvent(new PointerEvent('pointermove', true, nativeEvent, this, this.intersection, this.getCamera()))
   }
 
-  down(nativeEvent: NativeEvent & { button: number }): void {
+  down(scene: Object3D, nativeEvent: NativeEvent & { button: number }): void {
     this.buttonsDown.add(nativeEvent.button)
     if (!this.enabled) {
       return
     }
-    if (!this.wasMoved) {
-      this.onFirstMove.push(this.down.bind(this, nativeEvent))
-      return
-    }
     if (this.intersection == null) {
-      return
+      this.intersection = this.computeIntersection('pointer', scene, nativeEvent)
     }
     //pointer down
     emitPointerEvent(new PointerEvent('pointerdown', true, nativeEvent, this, this.intersection, this.getCamera()))
@@ -301,17 +291,13 @@ export class Pointer {
     this.buttonsDownTime.set(nativeEvent.button, nativeEvent.timeStamp)
   }
 
-  up(nativeEvent: NativeEvent & { button: number }): void {
+  up(scene: Object3D, nativeEvent: NativeEvent & { button: number }): void {
     this.buttonsDown.delete(nativeEvent.button)
     if (!this.enabled) {
       return
     }
-    if (!this.wasMoved) {
-      this.onFirstMove.push(this.up.bind(this, nativeEvent))
-      return
-    }
     if (this.intersection == null) {
-      return
+      this.computeIntersection('pointer', scene, nativeEvent)
     }
     const {
       clickThesholdMs,
@@ -360,16 +346,12 @@ export class Pointer {
     buttonsClickTime.delete(nativeEvent.button)
   }
 
-  cancel(nativeEvent: NativeEvent): void {
+  cancel(scene: Object3D, nativeEvent: NativeEvent): void {
     if (!this.enabled) {
       return
     }
-    if (!this.wasMoved) {
-      this.onFirstMove.push(this.cancel.bind(this, nativeEvent))
-      return
-    }
     if (this.intersection == null) {
-      return
+      this.intersection = this.computeIntersection('pointer', scene, nativeEvent)
     }
     //pointer cancel
     emitPointerEvent(new PointerEvent('pointercancel', true, nativeEvent, this, this.intersection, this.getCamera()))
@@ -379,16 +361,12 @@ export class Pointer {
     if (!this.enabled) {
       return
     }
-    if (!this.wasMoved && useMoveIntersection) {
-      this.onFirstMove.push(this.wheel.bind(this, scene, nativeEvent, useMoveIntersection))
-      return
-    }
     if (!useMoveIntersection) {
       this.wheelIntersection = this.computeIntersection('wheel', scene, nativeEvent)
     }
     const intersection = useMoveIntersection ? this.intersection : this.wheelIntersection
     if (intersection == null) {
-      return
+      this.intersection = this.computeIntersection('pointer', scene, nativeEvent)
     }
     //wheel
     emitPointerEvent(new WheelEvent(nativeEvent, this, intersection, this.getCamera()))
@@ -398,13 +376,9 @@ export class Pointer {
     if (!this.enabled) {
       return
     }
-    if (!this.wasMoved && useMoveIntersection) {
-      this.onFirstMove.push(this.emitWheel.bind(this, nativeEvent, useMoveIntersection))
-      return
-    }
     const intersection = useMoveIntersection ? this.intersection : this.wheelIntersection
     if (intersection == null) {
-      return
+      this.intersection = this.computeIntersection('pointer', scene, nativeEvent)
     }
     //wheel
     emitPointerEvent(new WheelEvent(nativeEvent, this, intersection, this.getCamera()))
@@ -420,7 +394,6 @@ export class Pointer {
       this.intersection = undefined
       this.commit(nativeEvent, false)
     }
-    this.onFirstMove.length = 0
     this.wasMoved = false
   }
 }

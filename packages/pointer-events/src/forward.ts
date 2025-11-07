@@ -160,19 +160,19 @@ function forwardEvents(
         pointer.wheel(scene, event as any)
         return
       case 'cancel':
-        pointer.cancel(event)
+        pointer.cancel(scene, event)
         return
       case 'down':
         if (!hasButton(event)) {
           return
         }
-        pointer.down(event)
+        pointer.down(scene, event)
         return
       case 'up':
         if (!hasButton(event)) {
           return
         }
-        pointer.up(event)
+        pointer.up(scene, event)
         return
       case 'exit':
         latestMoveEventMap.delete(pointer)
